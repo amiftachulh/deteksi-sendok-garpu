@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teachable Machine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --royal-blue: #4169e1;
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f0f0f0;
+      padding: 0;
+      margin: 0;
+    }
+
+    .topnav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--royal-blue);
+      color: #f0f0f0;
+      padding: .2rem 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .topnav__title {
+      font-weight: bold;
+      font-size: 1rem;
+    }
+
+    .topnav__about-me-btn {
+      cursor: pointer;
+    }
+
+    .teachable-machine {
+      position: relative;
+      text-align: center;
+    }
+
+    .start-btn {
+      background-color: var(--royal-blue);
+      color: #f0f0f0;
+      padding: 10px 20px;
+      margin-bottom: 1rem;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+    }
+
+    .model-preview {
+      display: none;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #fff;
+      padding: 20px;
+      width: 300px;
+    }
+
+    .about-me-wrapper {
+      position: absolute;
+      display: grid;
+      place-items: center;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.2);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s;
+    }
+
+    .about-me-wrapper.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .about-me {
+      background-color: #fff;
+    }
+
+    .about-me__title {
+      background-color: var(--royal-blue);
+      color: #f0f0f0;
+      padding: .8rem;
+    }
+
+    .about-me__desc {
+      padding: 1rem;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="topnav">
+    <h1 class="topnav__title">Deteksi Sendok / Garpu</h1>
+    <div id="about-me-btn" class="topnav__about-me-btn">Tentang saya</div>
+  </nav>
+  <div class="teachable-machine">
+    <button class="start-btn" type="button" onclick="init()">Start</button>
+    <div id="model-preview" class="model-preview">
+      <div id="webcam-container"></div>
+      <div id="label-container"></div>
+    </div>
+  </div>
+  <div id="about-me-wrapper" class="about-me-wrapper">
+    <div id="about-me" class="about-me">
+      <div class="about-me__title">Tentang saya</div>
+      <div class="about-me__desc">
+        <div>Nama: A.Miftachul Hidayat</div>
+        <div>NIM: 21120120120002</div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+  <script type="text/javascript">
+    const aboutMeWrapper = document.getElementById('about-me-wrapper');
+
+    document.getElementById('about-me-btn').addEventListener('click', () => {
+      aboutMeWrapper.classList.add('show');
+    });
+
+    aboutMeWrapper.addEventListener('click', () => {
+      aboutMeWrapper.classList.remove('show');
+    });
+
+    // More API functions here:
+    // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/image
+
+    // the link to your model provided by Teachable Machine export panel
+    const URL = "./my_model/";
+
+    let model, webcam, labelContainer, maxPredictions;
+
+    // Load the image model and setup the webcam
+    async function init() {
+      document.getElementById("model-preview").style.display = "block";
+
+      const modelURL = URL + "model.json";
+      const metadataURL = URL + "metadata.json";
+
+      // load the model and metadata
+      // Refer to tmImage.loadFromFiles() in the API to support files from a file picker
+      // or files from your local hard drive
+      // Note: the pose library adds "tmImage" object to your window (window.tmImage)
+      model = await tmImage.load(modelURL, metadataURL);
+      maxPredictions = model.getTotalClasses();
+
+      // Convenience function to setup a webcam
+      const flip = true; // whether to flip the webcam
+      webcam = new tmImage.Webcam(200, 200, flip); // width, height, flip
+      await webcam.setup(); // request access to the webcam
+      await webcam.play();
+      window.requestAnimationFrame(loop);
+
+      // append elements to the DOM
+      document.getElementById("webcam-container").appendChild(webcam.canvas);
+      labelContainer = document.getElementById("label-container");
+      for (let i = 0; i < maxPredictions; i++) { // and class labels
+        labelContainer.appendChild(document.createElement("div"));
+      }
+    }
+
+    async function loop() {
+      webcam.update(); // update the webcam frame
+      await predict();
+      window.requestAnimationFrame(loop);
+    }
+
+    // run the webcam image through the image model
+    async function predict() {
+      // predict can take in an image, video or canvas html element
+      const prediction = await model.predict(webcam.canvas);
+      for (let i = 0; i < maxPredictions; i++) {
+        const classPrediction =
+          prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+        labelContainer.childNodes[i].innerHTML = classPrediction;
+      }
+    }
+  </script>
+</body>
+
+</html>
